@@ -2,7 +2,7 @@
 
 AISE 3350A FW26 course project, Western University.
 
-We upload a photo of the four hands. Machine learning finds each hand, decides whether it belongs to our player or the opponent, and gives the probability that it is Rock, Paper or Scissors. Game theory then recommends which hand to keep.
+We upload a photo of the four hands. The notebook follows a real round: machine learning finds each hand, decides whether it belongs to our player or the opponent, and gives the probability that it is Rock, Paper or Scissors. Game theory then recommends which hand to keep.
 
 **Start here:** open `RPS1_Project_Report.ipynb` and read the **STILL TO FINISH** section at the top.
 
@@ -34,6 +34,6 @@ Then **Kernel → Restart & Run All**. Everything runs without photos; the visio
 |---|---|
 | Strategy: both stages, two cross-checked solvers | Done and tested |
 | Uncertainty-aware decisions and vision-error simulation | Done |
-| Adaptive (epsilon-safe) mode and its simulation | Done and tested |
+| Our own strategy: adaptive mode with a 15-round warm-up, and its simulation | Done and tested |
 | Vision: hand detection, owner classifier, shape classifier | Code done, tested on simulated hands; needs photos, labels and the model file |
 | Display | Done |
