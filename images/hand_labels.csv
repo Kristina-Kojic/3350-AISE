@@ -1,0 +1,5 @@
+filename,split,hand_index,owner,shape
+EXAMPLE_photo1.jpg,train,0,us,P
+EXAMPLE_photo1.jpg,train,1,us,S
+EXAMPLE_photo1.jpg,train,2,them,R
+EXAMPLE_photo1.jpg,train,3,them,P
