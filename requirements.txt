@@ -4,3 +4,4 @@ scipy>=1.11
 scikit-learn>=1.4
 mediapipe>=0.10.14
 jupyter
+opencv-python>=4.8   # only for tools/ (rebuilding the photos) and the optional webcam cell

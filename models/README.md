@@ -1,10 +1,9 @@
 # Hand model
 
-Download Google's MediaPipe Hand Landmarker model into this folder, keeping the name `hand_landmarker.task`:
+`hand_landmarker.task` in this folder is Google's MediaPipe Hand Landmarker model (float16 bundle), so the notebook runs without downloading anything.
 
-https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task
+- Size: 7,819,105 bytes
+- SHA-256: `fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1`
+- Official download (if the file is ever missing): https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task
 
-(Open the link in a browser and save the file here, or run:
-`curl -o models/hand_landmarker.task <link above>` from the project folder.)
-
-Submit this file with the notebook (it is only a few MB), so the instructor can run it without downloading anything.
+License: Apache 2.0 (Google MediaPipe).
