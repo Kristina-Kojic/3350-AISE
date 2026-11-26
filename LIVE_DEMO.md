@@ -72,7 +72,7 @@ On a Mac, the first time the app opens the camera, allow camera access for Termi
 
 This processes our five official demonstration photographs as independent rounds, without requiring a webcam.
 ```cmd
-python photo_demo.py
+python webcam_demo.py
 ```
 (On Mac use `images/demo`.) After 10–20 seconds of loading, a window opens showing the photos, the hands outlined and the decisions. Press **Q** to quit. **If this works, your install is good.**
 
@@ -127,7 +127,7 @@ This checks the five official photographs for gesture recognition, player owners
 ## Part 4 · Running it
 
 ```cmd
-python photo_demo.py
+python webcam_demo.py
 ```
 
 | Start option | What it does |
@@ -193,7 +193,7 @@ With **A**, the app learns which shapes this opponent tends to keep, from what t
 
 ## Part 6 · Who does what before the competition
 
-1. **Everyone:** Complete Parts 1–2, then run python photo_demo.py and python test_photos.py on your own laptop. Report any errors in the group chat with a screenshot.
+1. **Everyone:** Complete Parts 1–2, then run python webcam_demo.py and python test_photos.py on your own laptop. Report any errors in the group chat with a screenshot.
 2. **One person (the camera rig):** build the camera mount (Part 3) and check that all four hands fit, our player is at the bottom, and the light is good.
 3. **Everyone together:** play at least 20 practice rounds. Press **S** after any round the camera gets wrong, and write down why (light, fist, hands touching...). Those screenshots and reasons are exactly what the report's Discussion asks for.
 4. **On the day:** start with `--private`, plug in the camera before starting the app, check the room's light, and play one practice round first.
