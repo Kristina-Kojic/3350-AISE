@@ -1,4 +1,4 @@
-"""Controlled RPS-1 photo demo. Run beside live_app.py."""
+"""Independent still-image rounds using the existing RPS-1 application."""
 import argparse
 from pathlib import Path
 import time
@@ -8,6 +8,24 @@ from PIL import Image, ImageDraw
 import live_app as app
 
 
+def probability_panel(panel, game, footer):
+    img = Image.fromarray(cv2.cvtColor(panel, cv2.COLOR_BGR2RGB))
+    d = ImageDraw.Draw(img)
+    if game.decision and game.revealed and game.phase == 'DECISION':
+        dec = game.decision
+        app.centred(d, 480, 'Optimal retention probabilities', app.F['bodyb'], app.PLUM)
+        for i, side in enumerate(('LEFT', 'RIGHT')):
+            p = float(dec['keep_probs'][i])
+            y = 515 + 48*i
+            app.centred(d, y, f"{side} ({app.NAME[dec['mine'][i]['letter']]}) : {p:.1%}", app.F['body'], app.PLUM)
+            app.rounded(d, (65,y+27,375,y+35), (255,228,240), r=4)
+            if p > 0:
+                app.rounded(d, (65,y+27,65+max(1,int(310*p)),y+35), app.HOT, r=4)
+        app.centred(d, 615, f"Guaranteed expected payoff: {dec['guarantee']:+.3f}", app.F['small'], app.PLUM)
+    app.centred(d, 660, footer, app.F['small'], app.PLUM)
+    return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--source', default='.')
@@ -15,16 +33,13 @@ def main():
     parser.add_argument('--rotate', action='store_true')
     args = parser.parse_args()
     folder = Path(args.source)
-    files = sorted(folder.glob('photo*.jpg'))
-    if not files:
-        files = sorted(p for p in folder.iterdir() if p.suffix.lower() in ('.jpg', '.jpeg', '.png'))
+    files = sorted(folder.glob('photo*.jpg')) or sorted(p for p in folder.iterdir() if p.suffix.lower() in ('.jpg','.jpeg','.png'))
     if not files:
         raise SystemExit('No photographs found.')
     ns = app.load_notebook_code()
     vision = app.Vision(ns)
     game = app.Game(ns, seed=args.seed)
-    opponent_rng = np.random.default_rng(args.seed + 1)
-    window = 'RPS-1 Photo Demo (simulated)'
+    window = 'RPS-1 Photo Demo'
     cv2.namedWindow(window, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(window, app.W, app.H)
     index = 0
@@ -36,68 +51,44 @@ def main():
                 print('Unreadable:', files[index]); index += 1; continue
             if args.rotate:
                 frame = cv2.rotate(frame, cv2.ROTATE_180)
-            start = time.perf_counter()
             hands = vision.analyse(frame)
-            ms = 1000 * (time.perf_counter() - start)
             for _ in range(app.STEADY):
                 game.update(hands, time.time())
-            valid = game.decision is not None
-            removal = ('LEFT', 'RIGHT')[1-game.decision['keep']] if valid else 'N/A'
-            print(f'Photo {index+1}: {files[index].name}; remove {removal}')
-            if valid:
-                print('Keep probabilities:', game.decision['keep_probs'])
             while True:
-                video, box = app.fit_video(frame)
-                # The photograph is unchanged; do not mark all four hands as winners.
-                phase = game.phase
-                if phase == 'RESULT':
-                    game.phase = 'DECISION'
-                try:
-                    video = app.draw_video(video, hands, game, box)
-                finally:
-                    game.phase = phase
-                panel = app.draw_panel(game, hands, 0, ms)
-                img = Image.fromarray(cv2.cvtColor(panel, cv2.COLOR_BGR2RGB))
-                d = ImageDraw.Draw(img)
-                app.centred(d, 8, f'PHOTO {index+1}/{len(files)} | SIMULATION', app.F['smallb'], app.PLUM)
-                score = game.score
-                app.centred(d, 485, f"W {score['win']}   T {score['tie']}   L {score['loss']}", app.F['h2'], app.PLUM)
-                lead = score['win'] - score['loss']
-                app.centred(d, 520, f'Ahead by {lead}' if lead > 0 else f'Behind by {-lead}' if lead < 0 else 'Even', app.F['bodyb'], app.PLUM)
-                if phase == 'RESULT':
-                    app.centred(d, 550, f"{app.NAME[game.result['me']]} vs {app.NAME[game.result['them']]}", app.F['body'], app.PLUM)
-                    app.centred(d, 580, f'Removed {removal} | N: next photo', app.F['smallb'], app.PLUM)
-                elif valid:
-                    app.centred(d, 555, 'SPACE: simulate showdown', app.F['smallb'], app.PLUM)
+                if game.decision:
+                    dec = game.decision
+                    print(f"Photo {index+1}: {files[index].name}; keep probabilities {dec['keep_probs']}; remove {('LEFT','RIGHT')[1-dec['keep']]}")
                 else:
-                    app.centred(d, 555, 'Invalid detection | N: skip', app.F['smallb'], app.PLUM)
-                app.centred(d, 625, 'R: restart   Q: quit', app.F['small'], app.SOFT)
-                panel = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-                cv2.imshow(window, np.hstack([video, panel]))
-                key = cv2.waitKey(30) & 255
-                if key in (ord('q'), 27) or cv2.getWindowProperty(window, cv2.WND_PROP_VISIBLE) < 1:
-                    return
-                if key == ord('r'):
-                    game = app.Game(ns, seed=args.seed)
-                    opponent_rng = np.random.default_rng(args.seed + 1)
-                    index = 0
-                    break
-                if key == 32 and valid and phase == 'DECISION':
-                    # Opponent chooses uniformly; score is based on recognized gestures.
-                    opp = int(opponent_rng.integers(2))
-                    remaining = [dict(game.decision['mine'][game.decision['keep']]), dict(game.decision['theirs'][opp])]
-                    for _ in range(app.STEADY):
-                        game.update(remaining, time.time())
-                    print('Simulated result:', game.result, 'Score:', game.score)
-                if key == ord('n') and (game.phase == 'RESULT' or not valid):
-                    if index == len(files)-1:
-                        print('Final simulated score:', game.score, '(R to restart or Q to quit)')
-                    else:
-                        index += 1
+                    print('Invalid detection:', files[index])
+                while True:
+                    video, box = app.fit_video(frame)
+                    video = app.draw_video(video, hands, game, box)
+                    panel = app.draw_panel(game, hands, 0, 0)
+                    img = Image.fromarray(cv2.cvtColor(panel, cv2.COLOR_BGR2RGB))
+                    d = ImageDraw.Draw(img)
+                    d.rectangle((0,0,app.PANEL,65), fill=app.PINK_TOP)
+                    app.centred(d, 30, f'PHOTO ROUND {index+1}/{len(files)}', app.F['smallb'], app.PLUM)
+                    panel = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+                    panel = probability_panel(panel, game, 'N: next | S: resample | R: restart | Q: quit')
+                    cv2.imshow(window, np.hstack([video,panel]))
+                    key = cv2.waitKey(30) & 255
+                    if key in (ord('q'),27) or cv2.getWindowProperty(window,cv2.WND_PROP_VISIBLE)<1:
+                        return
+                    if key in (ord('n'),ord('r'),ord('s')):
                         break
+                if key == ord('s'):
+                    if game.decision:
+                        game.decision['keep'] = int(game.rng.choice(2,p=game.decision['keep_probs']))
+                    continue
+                if key == ord('r'):
+                    index = 0
+                    game = app.Game(ns,seed=args.seed)
+                else:
+                    index += 1
+                break
+        print('All photo rounds complete. Actual outcomes not observed.')
     finally:
         cv2.destroyAllWindows()
-
 
 if __name__ == '__main__':
     main()
