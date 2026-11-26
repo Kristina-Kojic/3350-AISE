@@ -180,8 +180,34 @@ class Game:
             self.steady_sig, self.steady_n = sig, (1 if sig else 0)
         return self.steady_n >= STEADY
 
+    def relabel(self, hands):
+        """After the decision is locked, decide whose each hand is by matching it to the
+        nearest of the four locked hands (a kept hand stays where it was), instead of
+        trusting the owner classifier on its own. With exactly two hands left, the game
+        rule 'one hand each' is enforced, so both can never be counted as ours."""
+        locked = self.decision["mine"] + self.decision["theirs"]          # 2 ours, then 2 theirs
+        if not hands or len(hands) > 4:
+            return
+        centre = lambda h: np.asarray(h["points"]).mean(axis=0)
+        best, best_cost = None, np.inf
+        from itertools import permutations
+        for match in permutations(range(len(locked)), len(hands)):
+            owners = [m < 2 for m in match]
+            if len(hands) == 2 and owners[0] == owners[1]:
+                continue                                   # showdown: exactly one each
+            cost = sum(np.linalg.norm(centre(h) - centre(locked[m])) for h, m in zip(hands, match))
+            if cost < best_cost:
+                best, best_cost = match, cost
+        if best is None:
+            return
+        for h, m in zip(hands, best):
+            h["ours"] = m < 2
+            h["side"] = locked[m]["side"]
+
     def update(self, hands, now):
         ns = self.ns
+        if self.phase in ("DECISION", "RESULT"):
+            self.relabel(hands)
         if self.phase == "SHOW":
             sig = signature(hands, 2, 2)
             if self._steady(sig):
@@ -241,14 +267,18 @@ from PIL import Image, ImageDraw, ImageFont
 W, H = 1360, 765                     # window size
 PANEL = 440                          # side panel width
 VIDEO_W, VIDEO_H = W - PANEL, H
-BG = (17, 24, 39)                    # panel colours (RGB)
-CARD = (31, 41, 55)
-TEXT = (243, 244, 246)
-MUTED = (156, 163, 175)
-OURS = (42, 157, 143)                # teal, same as the notebook's charts
-THEIRS = (231, 111, 81)              # orange
-GOOD, BAD, WARN = (74, 222, 128), (248, 113, 113), (250, 204, 21)
+# Pink theme (RGB)
+PINK_TOP, PINK_BOTTOM = (255, 236, 244), (255, 200, 222)   # panel gradient
+PLUM = (84, 22, 66)                  # main text
+SOFT = (150, 90, 130)                # secondary text
+HOT = (236, 72, 153)                 # accent pink
+RASPBERRY = (200, 22, 86)            # "take away"
+OURS = (255, 92, 168)                # our hands on the video
+THEIRS = (139, 108, 214)             # opponent's hands on the video (lavender)
+GOLD = (255, 196, 61)
+WHITE = (255, 255, 255)
 NAME = {"R": "Rock", "P": "Paper", "S": "Scissors"}
+VERB = {("R", "S"): "crushes", ("S", "P"): "cuts", ("P", "R"): "covers"}
 CONNECTIONS = [(0, 1), (1, 2), (2, 3), (3, 4), (0, 5), (5, 6), (6, 7), (7, 8), (5, 9), (9, 10),
                (10, 11), (11, 12), (9, 13), (13, 14), (14, 15), (15, 16), (13, 17), (17, 18),
                (18, 19), (19, 20), (0, 17)]
@@ -264,18 +294,18 @@ def font(size, bold=False):
         return ImageFont.load_default()
 
 
-F = {k: font(*v) for k, v in {"h1": (30, True), "h2": (20, True), "big": (44, True), "body": (18, False),
-                              "bodyb": (18, True), "small": (14, False), "tag": (16, True)}.items()}
+F = {k: font(*v) for k, v in {"huge": (76, True), "big": (50, True), "h1": (30, True), "h2": (24, True),
+                              "body": (20, False), "bodyb": (20, True), "small": (15, False),
+                              "smallb": (15, True), "tag": (17, True)}.items()}
 
 
 def rounded(d, box, fill, r=14, outline=None, width=2):
     d.rounded_rectangle(box, radius=r, fill=fill, outline=outline, width=width)
 
 
-def bar(d, x, y, w, h, frac, colour, back=(55, 65, 81)):
-    rounded(d, (x, y, x + w, y + h), back, r=h // 2)
-    if frac > 0:
-        rounded(d, (x, y, x + max(h, int(w * frac)), y + h), colour, r=h // 2)
+def centred(d, y, text, fnt, fill, x0=0, width=PANEL):
+    tw = d.textlength(text, font=fnt)
+    d.text((x0 + (width - tw) / 2, y), text, font=fnt, fill=fill)
 
 
 def fit_video(frame):
@@ -283,157 +313,144 @@ def fit_video(frame):
     h, w = frame.shape[:2]
     s = min(VIDEO_W / w, VIDEO_H / h)
     nw, nh = int(w * s), int(h * s)
-    canvas = np.zeros((VIDEO_H, VIDEO_W, 3), np.uint8)
+    canvas = np.full((VIDEO_H, VIDEO_W, 3), (60, 30, 50), np.uint8)
     x0, y0 = (VIDEO_W - nw) // 2, (VIDEO_H - nh) // 2
     canvas[y0:y0 + nh, x0:x0 + nw] = cv2.resize(frame, (nw, nh))
     return canvas, (x0, y0, nw, nh)
 
 
+def _tag(d, x, y, text, fill, box):
+    """A rounded label kept inside the video area."""
+    x0, y0, nw, nh = box
+    tw = d.textlength(text, font=F["tag"])
+    tx = min(max(x - tw / 2 - 12, x0 + 6), x0 + nw - tw - 30)
+    ty = min(max(y, y0 + 6), y0 + nh - 36)
+    rounded(d, (tx, ty, tx + tw + 24, ty + 32), fill + (240,), r=16)
+    d.text((tx + 12, ty + 6), text, font=F["tag"], fill=WHITE)
+
+
 def draw_video(frame, hands, game, box):
-    """Hand skeletons, labels and the decision highlight, drawn on the video."""
+    """Each hand outlined and named, plus KEEP / TAKE AWAY / WINNER tags."""
     x0, y0, nw, nh = box
     img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
     d = ImageDraw.Draw(img, "RGBA")
-    # middle line: their side above, our side below
     y_mid = y0 + nh // 2
-    for x in range(x0, x0 + nw, 24):                     # dark + light dashes: visible on any table
-        d.line((x, y_mid + 1, x + 12, y_mid + 1), fill=(0, 0, 0, 110), width=3)
-        d.line((x, y_mid, x + 12, y_mid), fill=(255, 255, 255, 150), width=1)
-    for text, ty, colour in (("OPPONENT'S SIDE  ▲", y_mid - 30, THEIRS), ("YOUR SIDE  ▼", y_mid + 8, OURS)):
-        tw = d.textlength(text, font=F["small"])
-        rounded(d, (x0 + 10, ty, x0 + 30 + tw, ty + 22), colour + (200,), r=8)
-        d.text((x0 + 20, ty + 3), text, font=F["small"], fill=(255, 255, 255))
+    for x in range(x0, x0 + nw, 22):                     # soft divider between the two sides
+        d.line((x, y_mid, x + 11, y_mid), fill=(255, 255, 255, 140), width=2)
+    for text, ty, colour in (("OPPONENT", y_mid - 30, THEIRS), ("YOU", y_mid + 8, OURS)):
+        tw = d.textlength(text, font=F["smallb"])
+        rounded(d, (x0 + 10, ty, x0 + 30 + tw, ty + 22), colour + (210,), r=11)
+        d.text((x0 + 20, ty + 3), text, font=F["smallb"], fill=WHITE)
 
     keep_side = None
-    if game.decision and game.revealed and game.phase == "DECISION":
+    if game.phase == "DECISION" and game.revealed:
         keep_side = ("LEFT", "RIGHT")[game.decision["keep"]]
+    winner = None
+    if game.phase == "RESULT" and game.result:
+        winner = {"win": "ours", "loss": "theirs", "tie": "both"}[game.result["outcome"]]
+
     for h in hands:
         pts = [(x0 + px * nw, y0 + py * nh) for px, py in h["points"]]
+        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
         colour = OURS if h["ours"] else THEIRS
-        if keep_side and h["ours"]:                      # highlight the hand to keep
-            xs, ys = [p[0] for p in pts], [p[1] for p in pts]
-            ring = GOOD if h["side"] == keep_side else BAD
-            d.rounded_rectangle((min(xs) - 18, min(ys) - 18, max(xs) + 18, max(ys) + 18),
-                                radius=16, outline=ring + (255,), width=5)
+        top_tag = None
+        if keep_side and h["ours"]:
+            take = h["side"] != keep_side
+            ring = RASPBERRY if take else HOT
+            d.rounded_rectangle((min(xs) - 20, min(ys) - 20, max(xs) + 20, max(ys) + 20),
+                                radius=22, outline=ring + (255,), width=6)
+            if take:                                     # a big cross over the hand to take away
+                cx, cy, r = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2, 0.35 * (max(ys) - min(ys))
+                d.line((cx - r, cy - r, cx + r, cy + r), fill=RASPBERRY + (200,), width=10)
+                d.line((cx - r, cy + r, cx + r, cy - r), fill=RASPBERRY + (200,), width=10)
+            top_tag = ("✕  TAKE AWAY", RASPBERRY) if take else None
+        if winner and (winner == "both" or (winner == "ours") == h["ours"]):
+            d.rounded_rectangle((min(xs) - 20, min(ys) - 20, max(xs) + 20, max(ys) + 20),
+                                radius=22, outline=GOLD + (255,), width=6)
+            top_tag = ("★  WINNER", GOLD) if winner != "both" else ("=  TIE", GOLD)
         for a, b in CONNECTIONS:
-            d.line((pts[a], pts[b]), fill=colour + (230,), width=4)
+            d.line((pts[a], pts[b]), fill=colour + (235,), width=4)
         for p in pts:
-            d.ellipse((p[0] - 4, p[1] - 4, p[0] + 4, p[1] + 4), fill=(255, 255, 255, 240))
-        who = f"YOU · {h['side']}" if h["ours"] else f"OPP · {h['side']}"
-        label = f"{who}   {NAME[h['letter']]} {h['conf']:.0%}"
-        wx, wy = pts[0]
-        tw = d.textlength(label, font=F["tag"])
-        ty = wy + 14 if h["ours"] and wy + 44 < y0 + nh else wy - 44
-        ty = min(max(ty, y0 + 6), y0 + nh - 34)
-        tx = min(max(wx - tw / 2 - 10, x0 + 6), x0 + nw - tw - 26)
-        rounded(d, (tx, ty, tx + tw + 20, ty + 30), colour + (235,), r=10)
-        d.text((tx + 10, ty + 5), label, font=F["tag"], fill=(255, 255, 255))
-        if h["conf"] < 0.70:
-            d.text((tx, ty + 32), "low confidence - check", font=F["small"], fill=WARN)
+            d.ellipse((p[0] - 4, p[1] - 4, p[0] + 4, p[1] + 4), fill=(255, 255, 255, 245))
+        who = f"YOU · {h['side']}" if h["ours"] else "OPPONENT"
+        label = f"{who}   {NAME[h['letter']]}"
+        if h["ours"]:      # name tag under our hands, action tag above them
+            _tag(d, (min(xs) + max(xs)) / 2, max(ys) + 26, label, colour, box)
+            if top_tag:
+                _tag(d, (min(xs) + max(xs)) / 2, min(ys) - 62, *top_tag, box)
+        else:              # opponent: name tag above, result tag below
+            _tag(d, (min(xs) + max(xs)) / 2, min(ys) - 62, label, colour, box)
+            if top_tag:
+                _tag(d, (min(xs) + max(xs)) / 2, max(ys) + 26, *top_tag, box)
     return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+
+
+def _panel_background():
+    grad = np.linspace(0, 1, H)[:, None, None]
+    arr = (np.array(PINK_TOP) * (1 - grad) + np.array(PINK_BOTTOM) * grad) * np.ones((H, PANEL, 3))
+    img = Image.fromarray(arr.astype(np.uint8))
+    d = ImageDraw.Draw(img, "RGBA")
+    for cx, cy, r, a in ((380, 90, 120, 50), (40, 700, 160, 45), (420, 560, 70, 40)):   # soft bubbles
+        d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(255, 255, 255, a))
+    return img
+
+
+_BACKGROUND = None
+
+
+def _card(img, box):
+    """White card with a soft pink shadow."""
+    from PIL import ImageFilter
+    shadow = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).rounded_rectangle((box[0], box[1] + 10, box[2], box[3] + 10), radius=34,
+                                             fill=(214, 51, 132, 70))
+    img.paste(shadow.filter(ImageFilter.GaussianBlur(14)), (0, 0), shadow.filter(ImageFilter.GaussianBlur(14)))
+    ImageDraw.Draw(img).rounded_rectangle(box, radius=34, fill=WHITE)
 
 
 def draw_panel(game, hands, fps, vision_ms):
-    img = Image.new("RGB", (PANEL, H), BG)
-    d = ImageDraw.Draw(img)
-    x, y, w = 24, 22, PANEL - 48
-    d.text((x, y), "RPS-1  LIVE", font=F["h1"], fill=TEXT)
-    chip = {"SHOW": ("STAGE 1 · SHOW", OURS), "DECISION": ("STAGE 2 · DECIDE", WARN),
-            "RESULT": ("ROUND RESULT", GOOD)}[game.phase]
-    tw = d.textlength(chip[0], font=F["small"])
-    rounded(d, (x + w - tw - 20, y + 4, x + w, y + 32), chip[1], r=14)
-    d.text((x + w - tw - 10, y + 10), chip[0], font=F["small"], fill=BG)
-    y += 58
+    """Only what the player has to do now (and, at the end, who won)."""
+    global _BACKGROUND
+    if _BACKGROUND is None:
+        _BACKGROUND = _panel_background()
+    img = _BACKGROUND.copy().convert("RGBA")
+    d = ImageDraw.Draw(img, "RGBA")
+    round_no = len(game.history) + (0 if game.phase == "RESULT" else 1)
+    centred(d, 30, f"ROUND {round_no}", F["smallb"], SOFT)
+    card = (24, 70, PANEL - 24, H - 70)
+    _card(img, card)
+    d = ImageDraw.Draw(img, "RGBA")
+    top = card[1] + 90                                   # content sits in the middle of the card
 
-    # ---- main card: what to do now
-    rounded(d, (x, y, x + w, y + 250), CARD, r=18)
-    cx, cy = x + 20, y + 18
     if game.phase == "SHOW":
-        d.text((cx, cy), "SHOW THESE TWO HANDS", font=F["small"], fill=MUTED)
-        a, b = game.advice
-        d.text((cx, cy + 26), f"{NAME[a]} + {NAME[b]}", font=F["big"], fill=TEXT)
-        d.text((cx, cy + 92), "Then hold all four hands still.", font=F["body"], fill=MUTED)
         n_mine = sum(h["ours"] for h in hands)
-        n_theirs = len(hands) - n_mine
-        d.text((cx, cy + 130), f"Seeing  {n_mine}/2 yours   {n_theirs}/2 theirs", font=F["bodyb"],
-               fill=GOOD if (n_mine, n_theirs) == (2, 2) else WARN)
-        d.text((cx, cy + 168), "Locking decision", font=F["small"], fill=MUTED)
-        bar(d, cx, cy + 192, w - 40, 14, game.progress(), OURS)
+        ready = (n_mine, len(hands) - n_mine) == (2, 2)
+        centred(d, top + 60, "Show your", F["h1"], SOFT)
+        centred(d, top + 105, "two hands", F["big"], PLUM)
+        x, w, y = card[0] + 50, card[2] - card[0] - 100, top + 230
+        rounded(d, (x, y, x + w, y + 16), (255, 228, 240), r=8)
+        if ready and game.progress() > 0:
+            rounded(d, (x, y, x + max(16, int(w * game.progress())), y + 16), HOT, r=8)
     elif game.phase == "DECISION" and not game.revealed:
-        d.text((cx, cy), "DECISION READY", font=F["small"], fill=MUTED)
-        d.text((cx, cy + 26), "Hidden", font=F["big"], fill=TEXT)
-        d.text((cx, cy + 92), "Private mode is on.", font=F["body"], fill=MUTED)
-        d.text((cx, cy + 122), "Only our player looks, then", font=F["body"], fill=MUTED)
-        d.text((cx, cy + 150), "press SPACE to reveal.", font=F["bodyb"], fill=WARN)
+        centred(d, top + 90, "Ready", F["big"], PLUM)
+        centred(d, top + 170, "press SPACE", F["h2"], HOT)
     elif game.phase == "DECISION":
-        dec = game.decision
-        side = ("LEFT", "RIGHT")[dec["keep"]]
-        shape = NAME[dec["mine"][dec["keep"]]["letter"]]
-        d.text((cx, cy), "KEEP YOUR", font=F["small"], fill=MUTED)
-        d.text((cx, cy + 22), f"{side} HAND", font=F["big"], fill=GOOD)
-        d.text((cx, cy + 80), f"({shape})  ·  pull the other one away", font=F["body"], fill=TEXT)
-        for k, lab in enumerate(("LEFT", "RIGHT")):
-            yy = cy + 122 + 34 * k
-            letter = dec["mine"][k]["letter"]
-            d.text((cx, yy), f"{lab:<5} {NAME[letter]}", font=F["body"], fill=TEXT)
-            bar(d, cx + 170, yy + 4, w - 250, 14, float(dec["keep_probs"][k]),
-                GOOD if k == dec["keep"] else (107, 114, 128))
-            d.text((x + w - 66, yy), f"{dec['keep_probs'][k]:.0%}", font=F["body"], fill=TEXT)
-        d.text((cx, cy + 196), f"Guaranteed expected score {dec['guarantee']:+.2f} per round",
-               font=F["small"], fill=MUTED)
+        take_side = ("LEFT", "RIGHT")[1 - game.decision["keep"]]
+        centred(d, top + 20, "TAKE AWAY", F["h1"], SOFT)
+        centred(d, top + 62, "your", F["h2"], SOFT)
+        rounded(d, (card[0] + 30, top + 110, card[2] - 30, top + 238), RASPBERRY, r=28)
+        centred(d, top + 126, take_side, F["huge"], WHITE)
+        centred(d, top + 258, "hand", F["h1"], RASPBERRY)
     else:
-        r = game.result
-        colour, word = {"win": (GOOD, "YOU WIN"), "tie": (WARN, "TIE"), "loss": (BAD, "YOU LOSE")}[r["outcome"]]
-        d.text((cx, cy), "THE CAMERA SAW", font=F["small"], fill=MUTED)
-        d.text((cx, cy + 22), word, font=F["big"], fill=colour)
-        d.text((cx, cy + 84), f"You {NAME[r['me']]}  vs  {NAME[r['them']]} Opponent", font=F["bodyb"], fill=TEXT)
-        note = "You followed the advice." if r["followed"] else f"Advice was to keep {NAME[r['advised']]}."
-        d.text((cx, cy + 120), note, font=F["body"], fill=MUTED)
-        d.text((cx, cy + 168), "Remove all hands or press N", font=F["body"], fill=MUTED)
-        d.text((cx, cy + 194), "for the next round.", font=F["body"], fill=MUTED)
-    y += 270
+        word, colour = {"win": ("WIN", HOT), "loss": ("LOSE", THEIRS), "tie": ("TIE", SOFT)}[game.result["outcome"]]
+        if game.result["outcome"] == "win":
+            centred(d, top + 20, "★", F["huge"], GOLD)
+        rounded(d, (card[0] + 30, top + 120, card[2] - 30, top + 248), colour, r=28)
+        centred(d, top + 136, word, F["huge"], WHITE)
+    if game.private:
+        centred(d, H - 52, "private mode", F["small"], SOFT)
+    return cv2.cvtColor(np.array(img.convert("RGB")), cv2.COLOR_RGB2BGR)
 
-    # ---- what the camera sees
-    d.text((x, y), "WHAT THE CAMERA SEES", font=F["small"], fill=MUTED)
-    y += 26
-    rows = sorted(hands, key=lambda h: (not h["ours"], h["side"]))
-    if not rows:
-        d.text((x, y), "No hands yet", font=F["body"], fill=MUTED)
-        y += 30
-    for h in rows[:4]:
-        colour = OURS if h["ours"] else THEIRS
-        rounded(d, (x, y + 4, x + 10, y + 22), colour, r=4)
-        who = f"You {h['side'].lower()}" if h["ours"] else f"Opponent {h['side']}"
-        d.text((x + 20, y), who, font=F["body"], fill=TEXT)
-        d.text((x + 175, y), NAME[h["letter"]], font=F["bodyb"], fill=TEXT)
-        d.text((x + w - 52, y), f"{h['conf']:.0%}", font=F["body"],
-               fill=TEXT if h["conf"] >= 0.70 else WARN)
-        y += 30
-    y = max(y, 470) + 10
-
-    # ---- score
-    rounded(d, (x, y, x + w, y + 92), CARD, r=18)
-    s = game.score
-    played = sum(s.values())
-    for k, (lab, val, col) in enumerate((("WINS", s["win"], GOOD), ("TIES", s["tie"], WARN),
-                                         ("LOSSES", s["loss"], BAD))):
-        cx = x + 20 + k * (w - 40) // 3
-        d.text((cx, y + 14), lab, font=F["small"], fill=MUTED)
-        d.text((cx, y + 36), str(val), font=F["h1"], fill=col)
-    avg = (s["win"] - s["loss"]) / played if played else 0.0
-    y += 104
-    d.text((x, y), f"{played} round{'' if played == 1 else 's'} · average {avg:+.2f} points per round", font=F["small"], fill=MUTED)
-    mode = "Adaptive (learns their habits)" if game.adaptive else "Class strategy (unbeatable mix)"
-    d.text((x, y + 22), f"Strategy: {mode}", font=F["small"], fill=MUTED)
-    d.text((x, y + 44), f"Private mode: {'ON' if game.private else 'off'}", font=F["small"],
-           fill=WARN if game.private else MUTED)
-    d.text((x, y + 66), f"Video {fps:.0f} fps  ·  hands read every {vision_ms:.0f} ms", font=F["small"], fill=MUTED)
-
-    # ---- footer
-    d.line((x, H - 70, x + w, H - 70), fill=(55, 65, 81), width=1)
-    d.text((x, H - 58), "N next  ·  SPACE reveal  ·  P private  ·  A adaptive", font=F["small"], fill=MUTED)
-    d.text((x, H - 36), "S screenshot  ·  R reset  ·  Q quit", font=F["small"], fill=MUTED)
-    return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
 
 # ---------------------------------------------------------------------------

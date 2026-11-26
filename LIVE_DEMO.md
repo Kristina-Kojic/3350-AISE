@@ -1,12 +1,11 @@
 # RPS-1 Live: Setup Guide for the Team
 
-`live_app.py` runs our project on a **live camera**. You see the video with every hand outlined and labelled, and a side panel that tells our player what to do, step by step:
+`live_app.py` runs our project on a **live camera**. You see the video with every hand outlined and named (yours in pink, the opponent's in purple). The side panel shows only what our player needs:
 
-1. Which pair to show.
-2. Which hand to keep.
-3. Who won the round, with a running score.
+1. **TAKE AWAY your LEFT/RIGHT hand**, in very large letters. A cross also appears over that hand on the video.
+2. Then **WIN**, **LOSE** or **TIE**.
 
-![The live app during Stage 2: keep the LEFT hand (green box), pull the RIGHT one away (red box)](docs/live_app_decision.jpg)
+![The live app: take away the RIGHT hand](docs/live_app_decision.jpg)
 
 **It uses exactly the notebook's code.** The app loads the hand finder, the two classifiers, the game solvers and the opponent model straight from `RPS1_Project_Report.ipynb`, and trains on `images/train` the same way. So the live app always matches what the report describes and measures. If someone fixes the notebook, the app gets the fix too.
 
@@ -115,13 +114,15 @@ python live_app.py
 
 | Step | On the screen | What the players do |
 |---|---|---|
-| **1 · Show** | Big text: which two hands to show, e.g. **Rock + Paper**. The bar fills while all four hands are seen and steady. | Both players show two hands and hold still for about a second. |
-| **2 · Decide** | **KEEP YOUR LEFT HAND** (or right). Green box around the hand to keep, red box around the one to pull away, plus the keep odds and guaranteed score. | Our player keeps the advised hand. Both pull one hand away. |
-| **3 · Result** | **YOU WIN / TIE / YOU LOSE**, what each player kept, and whether we followed the advice. The score updates. | Remove all hands from the table. The next round starts by itself (or press **N**). |
+| **1 · Show** | "Show your two hands". The pink bar fills while all four hands are seen and steady. | Both players show two hands and hold still for about a second. |
+| **2 · Decide** | **TAKE AWAY your RIGHT hand** (or left). A cross appears over that hand on the video. | Our player takes that hand away; the opponent takes one away too. |
+| **3 · Result** | **WIN**, **LOSE** or **TIE**. On the video, the winning hand is tagged WINNER. | Remove all hands from the table. The next round starts by itself (or press **N**). |
+
+**Who is who after the take-away:** when the decision locks, the app remembers where all four hands were and whose each one was. After the take-away, each remaining hand is matched to the nearest of those positions, and the rule "one hand each" is enforced. So the two hands left over are never both counted as ours, even if the classifier hesitates.
 
 The decision is **locked once**, when all four hands are steady. It then never flickers or changes while hands move. It is a random draw using the game-theory odds, so the same hands can give a different hand to keep next time. That's on purpose: it keeps us unpredictable.
 
-![Round result: the camera reads the two remaining hands and scores the round](docs/live_app_result.jpg)
+![Round result: the camera reads the two remaining hands](docs/live_app_result.jpg)
 
 ### Keys
 
@@ -137,7 +138,7 @@ The decision is **locked once**, when all four hands are steady. It then never f
 
 ### Private mode (for the competition)
 
-In a real match the opponent must not see our decision before choosing. With **P** (or `--private`), the panel says **"Hidden"** and the green/red boxes are not drawn. Only our player looks, presses **SPACE**, and the decision appears.
+In a real match the opponent must not see our decision before choosing. With **P** (or `--private`), the panel only says **"Ready – press SPACE"** and no cross is drawn on the video. Only our player looks, presses **SPACE**, and the decision appears.
 
 ![Private mode: the decision is ready but hidden](docs/live_app_private.jpg)
 
@@ -157,7 +158,7 @@ With **A**, the app learns which shapes this opponent tends to keep, from what t
 | Window opens but the video is black | Try `--camera 1`. On a Mac, allow camera access for Terminal. |
 | Our hands are labelled **OPP** and theirs **YOU** | The picture is upside down: restart with `--rotate`. |
 | "Seeing 1/2 yours" and the bar never fills | A hand isn't being found. Add light, use a plain background, spread the hands out, keep them fully in the picture. |
-| Shape label wrong or marked "low confidence" | Hold the pose clearly with fingers spread (Paper) or tight (Rock) and wait a moment. Low confidence means "check this hand yourself". |
+| Shape label wrong | Hold the pose clearly with fingers spread (Paper) or tight (Rock) and wait a moment. |
 | Takes 10–20 s to start | Normal: it trains the classifiers on our photos each time it starts. |
 | Very slow (fewer than 5 fps) | Close other programs. The video stays smooth; only the hand labels update less often. |
 
