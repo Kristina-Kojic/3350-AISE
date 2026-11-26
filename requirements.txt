@@ -2,6 +2,8 @@ numpy>=1.26
 matplotlib>=3.8
 scipy>=1.11
 scikit-learn>=1.4
-mediapipe>=0.10.14
+pandas>=2.0
+mediapipe>=0.10.14,<2   # tested with 0.10.32 and 1.2.3
+opencv-python>=4.8      # live_app.py, tools/ and the webcam cell
+pillow>=10              # live_app.py text drawing (also installed with matplotlib)
 jupyter
-opencv-python>=4.8   # only for tools/ (rebuilding the photos) and the optional webcam cell

@@ -33,6 +33,15 @@ Then **Kernel → Restart & Run All** (about 1–2 minutes). Photos, labels and 
 
 To rebuild the photos from scratch: download the DrGFreeman "Rock-Paper-Scissors Images" dataset, then run `python tools/make_photos.py <folder containing rock/ paper/ scissors/>` and `python tools/label_photos.py`.
 
+## Live camera app
+
+`live_app.py` runs the same vision and strategy on a live webcam feed, with the hands outlined on the video and a side panel showing what to show, which hand to keep, and who won. **Setup and instructions: [LIVE_DEMO.md](LIVE_DEMO.md).**
+
+```bash
+python live_app.py --source images/demo   # test without a camera
+python live_app.py                        # live camera
+```
+
 ## Status
 
 | Part | Status |
