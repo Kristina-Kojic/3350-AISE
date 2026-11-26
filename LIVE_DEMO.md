@@ -7,39 +7,27 @@ The project provides two interactive demonstration modes:
 
 Both applications use the vision and game-theory algorithms from `RPS1_Project_Report.ipynb` through `live_app.py`.
 
-The interface displays:
+The interface displays detected hand gestures, player ownership, recommended hand removal, left and right retention probabilities, and guaranteed expected payoff. Live webcam mode also tracks observed wins, ties and losses.
 
-- Detected hand gestures and player ownership.
-- Recommended hand removal.
-- Left and right retention probabilities.
-- Guaranteed expected payoff.
-- Observed wins, ties and losses in live webcam mode.
-
-Mixed-strategy decisions are sampled according to the calculated retention probabilities.
-
-Static photographs do not produce actual game outcomes because the opponent's final retained hand is unknown.
-
-The applications must run locally on a computer with the required Python dependencies installed.
+Mixed-strategy decisions are sampled according to the calculated retention probabilities. Static photographs do not produce actual game outcomes because the opponent's final retained hand is unknown.
 
 ---
 ## Part 1 · What to download (everyone, once)
 
 | What | Where | Notes |
 |---|---|---|
-| **Python 3.12** (64-bit) | python.org → Downloads | **Windows:** on the first install screen, tick **"Add python.exe to PATH"**. 3.11 also works. |
-| **Git** | git-scm.com | Default options are fine. |
-| **A webcam that can look down at the table** | — | See Part 3. A laptop's built-in camera faces you, not the table, so it works badly. |
-| Optional: **VS Code** | code.visualstudio.com | Nicer for opening the notebook, but not needed. |
+| Python 3.12 (64-bit) | python.org | On Windows, tick **Add python.exe to PATH**. |
+| Git | git-scm.com | Default options are fine. |
+| Webcam that can look down at the table | — | See Part 3. |
+| Optional: VS Code | code.visualstudio.com | Useful for opening the notebook. |
 
-Everything else (MediaPipe, OpenCV, scikit-learn...) is installed by one command in Part 2. The hand model file is already in the repo, so nothing else needs downloading.
-
----
+The hand model is already in the repository. Other dependencies are installed in Part 2.
 
 ## Part 2 · Install and update (everyone)
 
 ### Windows (Command Prompt)
 
-**First time:**
+First time:
 ```cmd
 cd %USERPROFILE%
 git clone https://github.com/Kristina-Kojic/3350-AISE.git
@@ -49,7 +37,7 @@ py -3.12 -m venv .venv
 pip install -r requirements.txt
 ```
 
-**Every time after that** (gets everyone's latest changes):
+For subsequent sessions, navigate to your existing clone (adjust the path if necessary):
 ```cmd
 cd %USERPROFILE%\3350-AISE
 git pull
@@ -66,45 +54,15 @@ python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
-On a Mac, the first time the app opens the camera, allow camera access for Terminal (System Settings → Privacy & Security → Camera).
+Allow camera access for Terminal when prompted (System Settings → Privacy & Security → Camera).
 
 ### Check it works before touching a camera
 
-This processes our five official demonstration photographs as independent rounds, without requiring a webcam.
-```cmd
-python webcam_demo.py
+This processes our five official demonstration photographs as independent rounds, without requiring a webcam:
+```bash
+python photo_demo.py
 ```
-(On Mac use `images/demo`.) After 10–20 seconds of loading, a window opens showing the photos, the hands outlined and the decisions. Press **Q** to quit. **If this works, your install is good.**
-
-`(.venv)` should appear at the start of the command line. If it doesn't, run the `activate` line again.
-
----
-
-## Part 3 · Setting up the camera
-
-The program decides whose hand is whose **by where it is in the picture**, so the camera position matters more than the camera itself.
-
-```
-              OPPONENT
-         ┌───────────────────┐
-         │   ✋        ✊     │   ← their hands come in from the TOP
-         │                   │
-         │      [camera]     │   ← camera above the middle, looking straight down
-         │                   │
-         │   ✋        ✌️     │   ← OUR hands come in from the BOTTOM
-         └───────────────────┘
-              OUR PLAYER
-```
-
-- **Camera:** above the middle of the table, pointing straight down, about 60–90 cm up, so all four hands fit with space around them. A USB webcam on a desk lamp arm, gooseneck clamp or small tripod works well. Taping it to a shelf edge works too.
-- **Orientation:** our player must be at the **bottom** of the picture. If the picture comes out upside down, start the app with `--rotate` instead of moving the camera.
-- **Light:** bright and even, from above. **Dim light is our biggest weakness**: in testing, the camera found only 75% of hands in dim light against 94–96% in good light. Turn the room lights on, and avoid a window behind the camera's view.
-- **Table:** plain and uncluttered. A plain sheet of paper or card under the hands helps. Busy tables cost hands in testing (82% found).
-- **Hands:** all four fully in view, not touching, sleeves pulled back. Fists are the hardest, so hold them still, knuckles towards the camera.
-- **Using a phone as the webcam:** apps that turn a phone into a webcam (for example Phone Link on Windows, DroidCam or Iriun) make the phone show up as a camera. Prop the phone above the table and start the app with `--camera 1`.
-
----
-### Photograph demonstration controls
+After loading, a window opens showing the photos, outlined hands and decisions.
 
 | Key | Action |
 |---|---|
@@ -113,87 +71,99 @@ The program decides whose hand is whose **by where it is in the picture**, so th
 | R | Restart from the first photograph |
 | Q or Esc | Quit |
 
-Each photograph represents an independent decision round.
-
 ### Automated validation
-
-Run:
-
 ```bash
 python test_photos.py
 ```
+This checks the five demonstration photographs for gesture recognition, player ownership, probability validity and payoff consistency. The expected final result is `5/5 passed`.
 
-This checks the five official photographs for gesture recognition, player ownership, probability validity and payoff consistency.
-## Part 4 · Running it
+## Part 3 · Setting up the camera
 
-```cmd
+The program decides whose hand is whose by where it is in the picture.
+
+```
+              OPPONENT
+         ┌───────────────────┐
+         │   ✋        ✊     │  Their hands enter from the top
+         │                   │
+         │      [camera]     │  Camera looks straight down
+         │                   │
+         │   ✋        ✌️     │  Our hands enter from the bottom
+         └───────────────────┘
+              OUR PLAYER
+```
+
+- **Camera:** above the middle of the table, pointing straight down, about 60–90 cm up, so all four hands fit with space around them. A USB webcam on a desk lamp arm, gooseneck clamp or small tripod works well.
+- **Orientation:** our player must be at the bottom. If the picture is upside down, use `--rotate`.
+- **Light:** bright and even, from above. In the reported testing, detection was 75% in dim light versus 94–96% in good light.
+- **Table:** plain and uncluttered. A plain sheet of paper or card helps. Busy tables reduced detection to 82% in the reported testing.
+- **Hands:** all four fully in view, not touching, sleeves pulled back. Hold fists still, knuckles towards the camera.
+- **Phone webcam:** if your phone is configured as a webcam, prop it above the table and try `--camera 1`.
+
+## Part 4 · Running the live webcam application
+
+```bash
 python webcam_demo.py
 ```
 
 | Start option | What it does |
 |---|---|
-| `--camera 1` | Use the second camera, if the wrong one opens (try 2, 3...). |
-| `--rotate` | Turn the picture 180°, if our player shows up at the top. |
+| `--camera 1` | Use the second camera (try 2, 3, etc.). |
+| `--rotate` | Turn the picture 180°. |
 | `--private` | Start in private mode (decision hidden until SPACE). |
-| `--adaptive` | Start with our adaptive strategy instead of the class strategy. |
+| `--adaptive` | Start with the adaptive strategy. |
 
 ### What happens in a round
 
 | Step | On the screen | What the players do |
 |---|---|---|
-| **1 · Show** | "Show your two hands". The pink bar fills while all four hands are seen and steady. | Both players show two hands and hold still for about a second. |
-| **2 · Decide** | **TAKE AWAY your RIGHT hand** (or left). A cross appears over that hand on the video. | Our player takes that hand away; the opponent takes one away too. |
-| **3 · Result** | **WIN**, **LOSE** or **TIE**. On the video, the winning hand is tagged WINNER. | Remove all hands from the table. The next round starts by itself (or press **N**). |
+| 1 · Show | Show your two hands; the progress bar fills as the four hands remain steady. | Both players show two hands and hold still. |
+| 2 · Decide | TAKE AWAY your RIGHT or LEFT hand; a cross marks that hand. | Both players remove one hand. |
+| 3 · Result | WIN, LOSE or TIE; the scoreboard updates. | Remove all hands for the next round, or press N. |
 
-**Who is who after the take-away:** when the decision locks, the app remembers where all four hands were and whose each one was. After the take-away, each remaining hand is matched to the nearest of those positions, and the rule "one hand each" is enforced. So the two hands left over are never both counted as ours, even if the classifier hesitates.
+When the decision locks, the app remembers where the four hands were and whose each one was. After the take-away, the remaining hands are matched to the locked positions. The decision is sampled according to the game-theory probabilities and stays locked while the hands move.
 
-The decision is **locked once**, when all four hands are steady. It then never flickers or changes while hands move. It is a random draw using the game-theory odds, so the same hands can give a different hand to keep next time. That's on purpose: it keeps us unpredictable.
+![Round result (original interface)](docs/live_app_result.jpg)
 
-![Round result: the camera reads the two remaining hands](docs/live_app_result.jpg)
-
-### Keys
+### Webcam keys
 
 | Key | Action |
 |---|---|
-| **N** | Next round (skip ahead) |
-| **SPACE** | Reveal the decision (private mode) |
-| **P** | Private mode on/off |
-| **A** | Adaptive strategy on/off |
-| **S** | Save a screenshot to `captures/` (good for the report) |
-| **R** | Reset the score and what we've learned about the opponent |
-| **Q** or **Esc** | Quit |
+| N | Next round |
+| SPACE | Reveal the decision in private mode |
+| P | Private mode on/off |
+| A | Adaptive strategy on/off |
+| S | Save a screenshot to `captures/` |
+| R | Reset score and opponent learning |
+| Q or Esc | Quit |
 
 ### Private mode (for the competition)
 
-In a real match the opponent must not see our decision before choosing. With **P** (or `--private`), the panel only says **"Ready – press SPACE"** and no cross is drawn on the video. Only our player looks, presses **SPACE**, and the decision appears.
+The opponent must not see our decision before choosing. Start with `python webcam_demo.py --private` or press P. Only our player should look when pressing SPACE to reveal the decision.
 
-![Private mode: the decision is ready but hidden](docs/live_app_private.jpg)
+![Private mode (original interface)](docs/live_app_private.jpg)
 
 ### Adaptive mode
 
-With **A**, the app learns which shapes this opponent tends to keep, from what the camera sees in each round's result. It leans our odds towards beating those habits. It stays within the safety limit from the notebook (Section 2.7), so it can never drop more than a small, fixed amount below the guaranteed score. Press **R** when you switch to a new opponent.
-
----
+With A, the app learns which shapes the opponent tends to keep from observed round results. It adjusts retention probabilities within the safety limit described in notebook Section 2.7. Press R when switching opponents.
 
 ## Part 5 · Troubleshooting
 
 | Problem | Fix |
 |---|---|
-| `'python' is not recognized` | Python isn't on PATH. Re-run the Python installer, choose **Modify**, and tick "Add Python to environment variables". Or use `py` instead of `python`. |
-| `No module named cv2` / `mediapipe` | The virtual environment isn't active. Run `.venv\Scripts\activate`, then `pip install -r requirements.txt`. |
-| "Could not open camera 0" | Close Zoom, Teams, Discord or the Camera app (only one program can use a camera). Or try `--camera 1`. |
-| Window opens but the video is black | Try `--camera 1`. On a Mac, allow camera access for Terminal. |
-| Our hands are labelled **OPP** and theirs **YOU** | The picture is upside down: restart with `--rotate`. |
-| "Seeing 1/2 yours" and the bar never fills | A hand isn't being found. Add light, use a plain background, spread the hands out, keep them fully in the picture. |
-| Shape label wrong | Hold the pose clearly with fingers spread (Paper) or tight (Rock) and wait a moment. |
-| Takes 10–20 s to start | Normal: it trains the classifiers on our photos each time it starts. |
-| Very slow (fewer than 5 fps) | Close other programs. The video stays smooth; only the hand labels update less often. |
-
----
+| Python is not recognized | Check Python installation and PATH. |
+| No module named cv2 or mediapipe | Activate the virtual environment and run `pip install -r requirements.txt`. |
+| Could not open camera 0 | Close other camera apps or try `--camera 1`. |
+| Black video | Try another camera index; on Mac, allow camera access. |
+| Player ownership reversed | Restart with `--rotate`. |
+| Missing hands | Improve lighting, use a plain background, spread hands out and keep them in view. |
+| Wrong gesture | Hold a clear pose and keep still. |
+| Slow startup | The application trains classifiers when it starts. |
+| Slow video | Close unnecessary programs. |
 
 ## Part 6 · Who does what before the competition
 
-1. **Everyone:** Complete Parts 1–2, then run python webcam_demo.py and python test_photos.py on your own laptop. Report any errors in the group chat with a screenshot.
-2. **One person (the camera rig):** build the camera mount (Part 3) and check that all four hands fit, our player is at the bottom, and the light is good.
-3. **Everyone together:** play at least 20 practice rounds. Press **S** after any round the camera gets wrong, and write down why (light, fist, hands touching...). Those screenshots and reasons are exactly what the report's Discussion asks for.
-4. **On the day:** start with `--private`, plug in the camera before starting the app, check the room's light, and play one practice round first.
+1. **Everyone:** Complete Parts 1–2, then run `python photo_demo.py` and `python test_photos.py` on your own laptop. Report any errors in the group chat with a screenshot.
+2. **Camera rig:** Build the camera mount (Part 3) and check that all four hands fit, our player is at the bottom, and the light is good.
+3. **Everyone together:** Play at least 20 practice rounds. Press S after any round the camera gets wrong and record the reason for the report's Discussion.
+4. **On the day:** Start with `python webcam_demo.py --private`, plug in the camera before starting, check lighting and play one practice round first.
