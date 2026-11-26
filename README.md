@@ -1,54 +1,72 @@
 # RPS-1: AI-Assisted Rock-Paper-Scissors-Minus-One
 
-AISE 3350A FW26 course project, Western University.
+AISE 3350A — Fall 2026  
+Western University
 
-We upload a photo of the four hands. The notebook follows a real round: machine learning finds each hand, decides whether it belongs to our player or the opponent, and gives the probability that it is Rock, Paper or Scissors. Game theory then recommends which hand to keep.
+## Project Overview
 
-**Start here:** open `RPS1_Project_Report.ipynb` and read the **STILL TO FINISH** section at the top.
+This project combines computer vision, machine learning and game theory to assist a player in Rock-Paper-Scissors-Minus-One (RPS-1).
 
-## What's in this repo
+The system detects four hands, identifies their respective players, estimates Rock, Paper and Scissors probabilities, and calculates a strategy for selecting which hand to retain. Both deterministic and mixed strategies are supported.
 
-| File / folder | What it is |
+## Repository Structure
+
+| File / Folder | Description |
 |---|---|
-| `RPS1_Project_Report.ipynb` | The report and all the code: strategy, vision, simulations, tests |
-| `requirements.txt` | Python packages to install |
-| `models/hand_landmarker.task` | Google's pre-trained MediaPipe hand model (included; details in `models/README.md`) |
-| `images/train/` | Photos for training the two classifiers (owner and shape) |
-| `images/test/` | Photos **only** for measuring accuracy, never for training |
-| `images/demo/` | The 5 photos we submit |
-| `images/hand_labels.csv` | One row per hand: photo, hand number, owner (us/them), shape (R/P/S) |
-| `images/photos.csv` | One row per photo: lighting, background, people, notes |
-| `images/composite_truth.csv`, `images/label_maps/` | Where each hand was placed in the generated photos (used only for labelling) |
-| `tools/make_photos.py` | Builds the four-hand photos from real hand photos (DrGFreeman dataset, CC BY-SA 4.0) |
-| `tools/label_photos.py` | Writes `images/hand_labels.csv` using the notebook's own hand finder |
+| `RPS1_Project_Report.ipynb` | Main project report, algorithms, experiments and evaluation |
+| `live_app.py` | Core live application |
+| `photo_demo.py` | Interactive demonstration using five official photographs |
+| `webcam_demo.py` | Live webcam application with strategy probabilities and scoreboard |
+| `test_photos.py` | Automated validation of the five demonstration photographs |
+| `requirements.txt` | Required Python dependencies |
+| `LIVE_DEMO.md` | Detailed demonstration and camera setup instructions |
+| `images/train/` | 50 training photographs |
+| `images/test/` | 80 independent evaluation photographs |
+| `images/demo/` | Five real-world demonstration photographs |
+| `images/hand_labels.csv` | Hand ownership and gesture annotations |
+| `images/photos.csv` | Dataset metadata |
+| `images/composite_truth.csv` | Generated image ground-truth information |
+| `images/label_maps/` | Dataset annotation resources |
+| `models/` | Pre-trained MediaPipe hand detection model |
+| `tools/` | Dataset generation and annotation utilities |
 
-## Running
+## Installation
+
+Python 3.12 is recommended.
 
 ```bash
 pip install -r requirements.txt
+```
+
+## Running the Jupyter Notebook
+
+```bash
 jupyter notebook RPS1_Project_Report.ipynb
 ```
 
-Then **Kernel → Restart & Run All** (about 1–2 minutes). Photos, labels and the hand model are all in the repo, so the vision training, test results and demo photos run straight away.
+Select **Kernel → Restart & Run All** to execute the project pipeline.
 
-To rebuild the photos from scratch: download the DrGFreeman "Rock-Paper-Scissors Images" dataset, then run `python tools/make_photos.py <folder containing rock/ paper/ scissors/>` and `python tools/label_photos.py`.
-
-## Live camera app
-
-`live_app.py` runs the same vision and strategy on a live webcam feed, with the hands outlined on the video and a side panel showing what to show, which hand to keep, and who won. **Setup and instructions: [LIVE_DEMO.md](LIVE_DEMO.md).**
+## Photograph Demonstration
 
 ```bash
-python live_app.py --source images/demo   # test without a camera
-python live_app.py                        # live camera
+python photo_demo.py
 ```
 
-## Status
+The application loads the five official demonstration photographs and displays detected gestures, player ownership, retention probabilities, recommended hand removal and guaranteed expected payoff.
 
-| Part | Status |
+| Key | Action |
 |---|---|
-| Strategy: both stages, two cross-checked solvers | Done and tested |
-| Uncertainty-aware decisions and vision-error simulation | Done |
-| Our own strategy: adaptive mode with a 15-round warm-up, and its simulation | Done and tested |
-| Vision: hand detection, owner classifier, shape classifier | Done: 135 labelled photos, trained, tested on 80 unseen photos (Section 3.2) |
-| Real photos of our own setup | Recommended before the live competition (Section 2.2) |
-| Display | Done |
+| N | Next photograph |
+| S | Resample the strategy |
+| R | Restart demonstration |
+| Q | Quit |
+
+Actual wins and losses are not reported for static photographs because the opponent's final retained hand is unknown.
+
+## Live Webcam Demonstration
+
+```bash
+python webcam_demo.py
+```
+
+The live application processes camera frames, recommends which hand to remove
