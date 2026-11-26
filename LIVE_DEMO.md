@@ -72,7 +72,7 @@ On a Mac, the first time the app opens the camera, allow camera access for Termi
 
 This plays our demo photos as if they were a camera feed:
 ```cmd
-python webcam_demo.py --source images\demo
+python photo_demo.py
 ```
 (On Mac use `images/demo`.) After 10–20 seconds of loading, a window opens showing the photos, the hands outlined and the decisions. Press **Q** to quit. **If this works, your install is good.**
 
@@ -127,7 +127,7 @@ This checks the five official photographs for gesture recognition, player owners
 ## Part 4 · Running it
 
 ```cmd
-python webcam_demo.py
+python photo_demo.py
 ```
 
 | Start option | What it does |
