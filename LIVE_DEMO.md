@@ -70,7 +70,7 @@ On a Mac, the first time the app opens the camera, allow camera access for Termi
 
 ### Check it works before touching a camera
 
-This plays our demo photos as if they were a camera feed:
+This processes our five official demonstration photographs as independent rounds, without requiring a webcam.
 ```cmd
 python photo_demo.py
 ```
@@ -136,7 +136,6 @@ python photo_demo.py
 | `--rotate` | Turn the picture 180°, if our player shows up at the top. |
 | `--private` | Start in private mode (decision hidden until SPACE). |
 | `--adaptive` | Start with our adaptive strategy instead of the class strategy. |
-| `--source images\demo` | No camera: play photos from a folder (for testing). |
 
 ### What happens in a round
 
@@ -194,7 +193,7 @@ With **A**, the app learns which shapes this opponent tends to keep, from what t
 
 ## Part 6 · Who does what before the competition
 
-1. **Everyone:** Parts 1–2, then run the `--source images\demo` test on your own laptop. Report any error in the group chat with a screenshot.
+1. **Everyone:** Complete Parts 1–2, then run python photo_demo.py and python test_photos.py on your own laptop. Report any errors in the group chat with a screenshot.
 2. **One person (the camera rig):** build the camera mount (Part 3) and check that all four hands fit, our player is at the bottom, and the light is good.
 3. **Everyone together:** play at least 20 practice rounds. Press **S** after any round the camera gets wrong, and write down why (light, fist, hands touching...). Those screenshots and reasons are exactly what the report's Discussion asks for.
 4. **On the day:** start with `--private`, plug in the camera before starting the app, check the room's light, and play one practice round first.
