@@ -1,18 +1,27 @@
-# RPS-1 Live: Setup Guide for the Team
+# RPS-1: Photograph and Live Webcam Demonstration Guide
 
-`live_app.py` runs our project on a **live camera**. You see the video with every hand outlined and named (yours in pink, the opponent's in purple). The side panel shows only what our player needs:
+The project provides two interactive demonstration modes:
 
-1. **TAKE AWAY your LEFT/RIGHT hand**, in very large letters. A cross also appears over that hand on the video.
-2. Then **WIN**, **LOSE** or **TIE**.
+- `photo_demo.py`: Processes the five official demonstration photographs as independent rounds.
+- `webcam_demo.py`: Processes live camera frames and tracks actual game outcomes.
 
-![The live app: take away the RIGHT hand](docs/live_app_decision.jpg)
+Both applications use the vision and game-theory algorithms from `RPS1_Project_Report.ipynb` through `live_app.py`.
 
-**It uses exactly the notebook's code.** The app loads the hand finder, the two classifiers, the game solvers and the opponent model straight from `RPS1_Project_Report.ipynb`, and trains on `images/train` the same way. So the live app always matches what the report describes and measures. If someone fixes the notebook, the app gets the fix too.
+The interface displays:
 
-> **It must run on a laptop, not Colab.** Colab runs on Google's computers and can't see your webcam.
+- Detected hand gestures and player ownership.
+- Recommended hand removal.
+- Left and right retention probabilities.
+- Guaranteed expected payoff.
+- Observed wins, ties and losses in live webcam mode.
+
+Mixed-strategy decisions are sampled according to the calculated retention probabilities.
+
+Static photographs do not produce actual game outcomes because the opponent's final retained hand is unknown.
+
+The applications must run locally on a computer with the required Python dependencies installed.
 
 ---
-
 ## Part 1 · What to download (everyone, once)
 
 | What | Where | Notes |
@@ -63,7 +72,7 @@ On a Mac, the first time the app opens the camera, allow camera access for Termi
 
 This plays our demo photos as if they were a camera feed:
 ```cmd
-python live_app.py --source images\demo
+python webcam_demo.py --source images\demo
 ```
 (On Mac use `images/demo`.) After 10–20 seconds of loading, a window opens showing the photos, the hands outlined and the decisions. Press **Q** to quit. **If this works, your install is good.**
 
@@ -99,7 +108,7 @@ The program decides whose hand is whose **by where it is in the picture**, so th
 ## Part 4 · Running it
 
 ```cmd
-python live_app.py
+python webcam_demo.py
 ```
 
 | Start option | What it does |
