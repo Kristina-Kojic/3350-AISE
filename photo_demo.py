@@ -28,7 +28,10 @@ def probability_panel(panel, game, footer):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--source', default='.')
+    parser.add_argument(
+        '--source',
+        default=str(Path(__file__).resolve().parent / 'images' / 'demo')
+    )
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--rotate', action='store_true')
     args = parser.parse_args()
