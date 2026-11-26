@@ -104,7 +104,26 @@ The program decides whose hand is whose **by where it is in the picture**, so th
 - **Using a phone as the webcam:** apps that turn a phone into a webcam (for example Phone Link on Windows, DroidCam or Iriun) make the phone show up as a camera. Prop the phone above the table and start the app with `--camera 1`.
 
 ---
+### Photograph demonstration controls
 
+| Key | Action |
+|---|---|
+| N | Advance to the next photograph |
+| S | Resample the retention strategy |
+| R | Restart from the first photograph |
+| Q or Esc | Quit |
+
+Each photograph represents an independent decision round.
+
+### Automated validation
+
+Run:
+
+```bash
+python test_photos.py
+```
+
+This checks the five official photographs for gesture recognition, player ownership, probability validity and payoff consistency.
 ## Part 4 · Running it
 
 ```cmd
